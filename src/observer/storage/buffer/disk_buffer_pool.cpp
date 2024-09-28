@@ -10,7 +10,8 @@ See the Mulan PSL v2 for more details. */
 
 //
 // Created by Meiyi & Longda on 2021/4/13.
-//
+// Modified by Lotaliz on 2024/9/26.
+
 #include <errno.h>
 #include <string.h>
 
@@ -884,6 +885,19 @@ RC BufferPoolManager::close_file(const char *_file_name)
 
   delete bp;
   return RC::SUCCESS;
+}
+
+RC BufferPoolManager::delete_file(const char *file_name)
+{
+  RC rc = RC::SUCCESS;
+  rc = close_file(file_name);
+  if(rc == RC::SUCCESS){
+    if(0 != ::remove(file_name)){
+      LOG_WARN("remove file fail. file name=%s, errno = %s", file_name, strerror(errno));
+      rc = RC::FILE_REMOVE;
+    }
+  }
+  return rc;
 }
 
 RC BufferPoolManager::flush_page(Frame &frame)

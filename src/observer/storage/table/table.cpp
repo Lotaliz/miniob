@@ -10,7 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 //
 // Created by Meiyi & Wangyunlai on 2021/5/13.
-//
+// Modified by Lotaliz on 2024/9/26.
 
 #include <limits.h>
 #include <string.h>
@@ -124,6 +124,43 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   }
 
   LOG_INFO("Successfully create table %s:%s", base_dir, name);
+  return rc;
+}
+
+RC Table::drop(Db *db, const char *path)
+{
+  RC rc = RC::SUCCESS;
+  string meta_file = table_meta_file(path, name());
+  // drop meta file and index file
+  if (0 != ::unlink(meta_file.c_str())) {
+    LOG_WARN("unable to delete %s meta file", name());
+    rc = RC::IOERR_DELETE;
+  }
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; i++) {
+    ((BplusTreeIndex *)indexes_[i])->close();
+    const IndexMeta *index_meta = table_meta_.index(i);
+    if (index_meta != nullptr) {
+      string index_file = table_index_file(path, name(), index_meta->name());
+      if (0 != ::unlink(index_file.c_str())) {
+        LOG_WARN("unable to delete %s meta file", name());
+        rc = RC::IOERR_DELETE;
+        break;
+      }
+    }
+  }
+  
+  // destroy record handler
+  record_handler_->close();
+  delete record_handler_;
+  record_handler_ = nullptr;
+  // remove data file
+  std::string data_file = table_data_file(path, name());
+  if (0 != ::unlink(data_file.c_str())) {
+    LOG_WARN("unable to delete %s data file", name());
+    rc = RC::IOERR_DELETE;
+  }
+
   return rc;
 }
 

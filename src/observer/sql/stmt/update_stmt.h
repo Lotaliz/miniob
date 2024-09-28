@@ -10,12 +10,13 @@ See the Mulan PSL v2 for more details. */
 
 //
 // Created by Wangyunlai on 2022/5/22.
-//
+// Modified by Lotaliz on 2024/9/28.
 
 #pragma once
 
 #include "common/rc.h"
 #include "sql/stmt/stmt.h"
+#include "sql/stmt/filter_stmt.h"
 
 class Table;
 
@@ -27,7 +28,8 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table, Value *values, int value_amount);
+  UpdateStmt(Table *table, const FieldMeta *field, const Value *value, FilterStmt* filter);
+  virtual ~UpdateStmt();
 
   StmtType type() const override { return StmtType::UPDATE; }
 
@@ -36,11 +38,13 @@ public:
 
 public:
   Table *table() const { return table_; }
-  Value *values() const { return values_; }
-  int    value_amount() const { return value_amount_; }
+  const FieldMeta* field() const { return field_; }
+  const Value *value() const { return value_; }
+  FilterStmt* filter() { return filter_; }
 
 private:
-  Table *table_        = nullptr;
-  Value *values_       = nullptr;
-  int    value_amount_ = 0;
+  Table *table_ = nullptr;
+  const FieldMeta *field_ = nullptr;
+  const Value *value_  = nullptr;
+  FilterStmt* filter_;
 };

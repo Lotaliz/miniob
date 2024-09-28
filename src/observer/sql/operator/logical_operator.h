@@ -10,7 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 //
 // Created by Wangyunlai on 2022/12/07.
-//
+// Modified by Lotaliz on 2024/9/28.
 
 #pragma once
 
@@ -40,6 +40,7 @@ enum class LogicalOperatorType
   INSERT,      ///< 插入
   DELETE,      ///< 删除，删除可能会有子查询
   EXPLAIN,     ///< 查看执行计划
+  UPDATE,      ///< 更新
   GROUP_BY,    ///< 分组
 };
 

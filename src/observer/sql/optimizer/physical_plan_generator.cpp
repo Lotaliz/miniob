@@ -30,6 +30,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/insert_physical_operator.h"
 #include "sql/operator/join_logical_operator.h"
 #include "sql/operator/join_physical_operator.h"
+#include "sql/operator/update_logical_operator.h"
+#include "sql/operator/update_physical_operator.h"
 #include "sql/operator/predicate_logical_operator.h"
 #include "sql/operator/predicate_physical_operator.h"
 #include "sql/operator/project_logical_operator.h"
@@ -81,6 +83,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::JOIN: {
       return create_plan(static_cast<JoinLogicalOperator &>(logical_operator), oper);
+    } break;
+
+    case LogicalOperatorType::UPDATE: {
+      return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper);
     } break;
 
     case LogicalOperatorType::GROUP_BY: {
@@ -308,6 +314,15 @@ RC PhysicalPlanGenerator::create_plan(JoinLogicalOperator &join_oper, unique_ptr
     LOG_WARN("join operator should have 2 children, but have %d", child_opers.size());
     return RC::INTERNAL;
   }
+
+RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_operator, unique_ptr<PhysicalOperator> &oper)
+{
+  Table                  *table           = insert_oper.table();
+  vector<Value>          &values          = insert_oper.values();
+  UpdatePhysicalOperator *update_phy_oper = new UpdatePhysicalOperator(table, std::move(values));
+  oper.reset(update_operator);
+  return RC::SUCCESS;
+}
 
   unique_ptr<PhysicalOperator> join_physical_oper(new NestedLoopJoinPhysicalOperator);
   for (auto &child_oper : child_opers) {

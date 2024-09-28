@@ -17,9 +17,15 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
-UpdateStmt::UpdateStmt(Table *table, Value *values, int value_amount)
-    : table_(table), values_(values), value_amount_(value_amount)
+UpdateStmt::UpdateStmt(Table *table, const FieldMeta *field, const Value *value,
+  FilterStmt* filter)
+  : table_(table), field_(field), value_(value), filter_(filter)
 {}
+
+UpdateStmt::~UpdateStmt()
+{
+  delete(filter_);
+}
 
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 {
@@ -40,13 +46,30 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 
   // check whether the field exists
   const TableMeta &table_meta = table->table_meta();
-  const FieldMeta *field_meta = table_meta.field(attribute_name);
-  if(nullptr == field_meta){
+  const FieldMeta *field = table_meta.field(attribute_name);
+  if(nullptr == field){
     LOG_WARN("no such field. db=%s, field=%s", db->name(), attribute_name);
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
-  
 
-  // stmt = new UpdateStmt(table, values, value_amount);
-  return RC::INTERNAL;
+  // check field type matching
+  const Value *value = &update.value;
+  if(value->attr_type() != field->type()){
+    LOG_WARN("field type mismatch. table=%s, field=%s, field_type=%d, value_type=%d",
+    table->name(), attribute_name, field->type(), value->attr_type());
+    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+  }
+  
+  unordered_map<string, Table*> table_map;
+  table_map.insert(pair<string, Table*>(string(table_name), table));
+  FilterStmt* filter = nullptr;
+  RC rc = FilterStmt::create(db, table, &table_map, update.conditions.data(),
+     update.conditions.size(), filter);
+  if(rc != RC::SUCCESS){
+    LOG_WARN("cannot construct filter stmt");
+    return rc;
+  }
+
+  stmt = new UpdateStmt(table, field, value, filter);
+  return RC::SUCCESS;
 }

@@ -292,6 +292,11 @@ const char *Table::name() const { return table_meta_.name(); }
 
 const TableMeta &Table::table_meta() const { return table_meta_; }
 
+RC Table::make_record(char *data, int len, Record &record) {
+  record.set_data(data, len);
+  return RC::SUCCESS;
+}
+
 RC Table::make_record(int value_num, const Value *values, Record &record)
 {
   RC rc = RC::SUCCESS;

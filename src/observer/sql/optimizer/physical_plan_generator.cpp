@@ -315,15 +315,6 @@ RC PhysicalPlanGenerator::create_plan(JoinLogicalOperator &join_oper, unique_ptr
     return RC::INTERNAL;
   }
 
-RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_operator, unique_ptr<PhysicalOperator> &oper)
-{
-  Table                  *table           = insert_oper.table();
-  vector<Value>          &values          = insert_oper.values();
-  UpdatePhysicalOperator *update_phy_oper = new UpdatePhysicalOperator(table, std::move(values));
-  oper.reset(update_operator);
-  return RC::SUCCESS;
-}
-
   unique_ptr<PhysicalOperator> join_physical_oper(new NestedLoopJoinPhysicalOperator);
   for (auto &child_oper : child_opers) {
     unique_ptr<PhysicalOperator> child_physical_oper;
@@ -337,6 +328,31 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_operator, un
   }
 
   oper = std::move(join_physical_oper);
+  return rc;
+}
+
+RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
+
+  unique_ptr<PhysicalOperator> child_physical_oper;
+
+  RC rc = RC::SUCCESS;
+  if (!child_opers.empty()) {
+    LogicalOperator *child_oper = child_opers.front().get();
+
+    rc = create(*child_oper, child_physical_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create physical operator. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(), update_oper.field(), update_oper.value()));
+
+  if (child_physical_oper) {
+    oper->add_child(std::move(child_physical_oper));
+  }
   return rc;
 }
 

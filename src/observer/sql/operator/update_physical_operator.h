@@ -30,7 +30,7 @@ public:
 
   virtual ~UpdatePhysicalOperator() = default;
 
-  PhysicalOperatorType type() const override { return PhysicalOperatorType::INSERT; }
+  PhysicalOperatorType type() const override { return PhysicalOperatorType::UPDATE; }
 
   RC open(Trx *trx) override;
   RC next() override;
@@ -39,7 +39,13 @@ public:
   Tuple *current_tuple() override { return nullptr; }
 
 private:
+  RC update(vector<char> record, FieldMeta *field, Value *value, RID &rid);
+  RC insert(vector<char> &record, RID &rid);
+
   Table *table_ = nullptr;
   FieldMeta *field_ = nullptr;
   Value *value_ = nullptr;
+  Trx *trx_   = nullptr;
+  vector<Record> records_;
+  vector<vector<char> > deleted_records_;
 };

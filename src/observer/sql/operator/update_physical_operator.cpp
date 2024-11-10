@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/update_stmt.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
+#include "common/value.h"
 
 using namespace std;
 
@@ -24,24 +25,99 @@ UpdatePhysicalOperator::UpdatePhysicalOperator(
 
 RC UpdatePhysicalOperator::open(Trx *trx)
 {
-  Record record;
-  RC     rc = table_->set_value_to_record(nullptr, *value_, field_);
+  if (children_.empty()) {
+    return RC::SUCCESS;
+  }
+
+  std::unique_ptr<PhysicalOperator> &child = children_[0];
+
+  RC rc = child->open(trx);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to update record. rc=%s", strrc(rc));
+    LOG_WARN("failed to open child operator: %s", strrc(rc));
     return rc;
   }
 
-  rc = trx->delete_record(table_, record);
-  if(rc != RC::SUCCESS){
-    LOG_WARN("failed to update record by transaction. rc=%s", strrc(rc));
+  trx_ = trx;
+
+  while (OB_SUCC(rc = child->next())) {
+    Tuple *tuple = child->current_tuple();
+    if (nullptr == tuple) {
+      LOG_WARN("failed to get current record: %s", strrc(rc));
+      return rc;
+    }
+
+    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+    Record   &record    = row_tuple->record();
+    records_.emplace_back(std::move(record));
   }
-  rc = trx->insert_record(table_, record);
-  if(rc != RC::SUCCESS){
-    LOG_WARN("failed to update record by transaction. rc=%s", strrc(rc));
+  child->close();
+
+  for (Record &record : records_) {
+    vector<char> tmp_record(table_->table_meta().record_size());
+    memcpy(tmp_record.data(), record.data(), tmp_record.size());
+    rc = trx_->delete_record(table_, record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to delete record: %s", strrc(rc));
+      return rc;
+    }
+    deleted_records_.emplace_back(tmp_record);
   }
-  return rc;
+
+  for(int i = 0; i < deleted_records_.size(); i++){
+    RID rid;
+    rc = update(deleted_records_[i], field_, value_, rid);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to insert record: %s", strrc(rc));
+      return rc;
+    }
+  }
+  return RC::SUCCESS;
 }
 
 RC UpdatePhysicalOperator::next() { return RC::RECORD_EOF; }
 
 RC UpdatePhysicalOperator::close() { return RC::SUCCESS; }
+
+RC UpdatePhysicalOperator::update(vector<char> record, FieldMeta *field, Value *value, RID &rid) {
+  const FieldMeta *fieldmeta = field;
+  if (value->attr_type() != fieldmeta->type()) {
+    // TODO: nullable test
+    // TODO: convert attr_type
+    // if (!Value::convert(value.attr_type(), fieldmeta->type(), value)) {
+    //   line_sql_debug("rc=%s", strrc(RC::INVALID_ARGUMENT));
+    //   LOG_WARN("failed to convert update value");
+    //   return RC::INVALID_ARGUMENT;
+    // }
+  }
+  int offset = fieldmeta->offset();
+  if (fieldmeta->type() != AttrType::CHARS) {
+    memcpy(record.data() + offset, value, 4);
+  } else {
+    if (value->length() > fieldmeta->len()) {
+      LOG_WARN("rc=%s", strrc(RC::INVALID_ARGUMENT));
+      return RC::INVALID_ARGUMENT;
+    }
+    memcpy(record.data() + offset, value->data(), value->length());
+    memset(record.data() + offset + value->length(), 0, fieldmeta->len() - value->length());
+  }
+    
+  return insert(record, rid);
+}
+
+RC UpdatePhysicalOperator::insert(vector<char> &record_data, RID &rid) {
+  Record record;
+  RC rc = table_->make_record(record_data.data(), record_data.size(), record);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("rc=%s", strrc(rc));
+    LOG_ERROR("fail to make record");
+    return rc;
+  }
+  rc = trx_->insert_record(table_, record);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("rc=%s", strrc(rc));
+    LOG_ERROR("fail to insert record");
+    return rc;
+  }
+  rid = record.rid();
+  return rc;
+}

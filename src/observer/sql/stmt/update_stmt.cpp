@@ -24,7 +24,10 @@ UpdateStmt::UpdateStmt(Table *table, const FieldMeta *field, const Value *value,
 
 UpdateStmt::~UpdateStmt()
 {
-  delete(filter_);
+  if (nullptr != filter_) {
+    delete filter_;
+    filter_ = nullptr;
+  }
 }
 
 RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)

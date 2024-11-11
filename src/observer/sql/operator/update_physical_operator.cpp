@@ -91,7 +91,7 @@ RC UpdatePhysicalOperator::update(vector<char> record, FieldMeta *field, Value *
   }
   int offset = fieldmeta->offset();
   if (fieldmeta->type() != AttrType::CHARS) {
-    memcpy(record.data() + offset, value, 4);
+    memcpy(record.data() + offset, value->data(), 4);
   } else {
     if (value->length() > fieldmeta->len()) {
       LOG_WARN("rc=%s", strrc(RC::INVALID_ARGUMENT));

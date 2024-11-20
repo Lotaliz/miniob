@@ -10,7 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 //
 // Created by Wangyunlai on 2024/05/29.
-//
+// Modified by Lotaliz on 2024/11/20
 
 #pragma once
 
@@ -29,7 +29,41 @@ protected:
   Value value_;
 };
 
+class CountAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+
+private:
+  int count_ = 0;
+};
+
 class SumAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class MaxAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+};
+
+class AvgAggregator : public Aggregator
+{
+public:
+  RC accumulate(const Value &value) override;
+  RC evaluate(Value &result) override;
+  
+private:
+  int count_ = 0;
+};
+
+class MinAggregator : public Aggregator
 {
 public:
   RC accumulate(const Value &value) override;

@@ -532,7 +532,9 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
-    // your code here
+    | ID LBRACE expression RBRACE {
+      $$ = create_aggregate_expression($1, $3, sql_string, &@$);
+    }
     ;
 
 rel_attr:

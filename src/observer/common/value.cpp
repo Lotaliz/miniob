@@ -125,6 +125,10 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::DATE: {
+      value_.int_value_ = *(int *)data;
+      length_            = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -221,7 +225,8 @@ const char *Value::data() const
 string Value::to_string() const
 {
   string res;
-  RC     rc = DataType::type_instance(this->attr_type_)->to_string(*this, res);
+  DataType *datatype = DataType::type_instance(this->attr_type_);
+  RC rc = datatype->to_string(*this, res);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to convert value to string. type=%s", attr_type_to_string(this->attr_type_));
     return "";

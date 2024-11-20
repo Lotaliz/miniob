@@ -12,6 +12,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/type/char_type.h"
 #include "common/value.h"
+#include "common/lang/sstream.h"
+
+class DateType;
 
 int CharType::compare(const Value &left, const Value &right) const
 {
@@ -28,10 +31,25 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
 
 RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 {
+  RC rc = RC::SUCCESS;
+  const string &data = val.get_string();
+  std::istringstream dateStream(data);
+  uint32_t date_int = 0;
   switch (type) {
+    case AttrType::DATE:
+      int year, month, day;
+      char dash1, dash2;
+      dateStream >> year >> dash1 >> month >> dash2 >> day;
+      date_int |= (day & 0xFF); 
+      date_int |= (month & 0xFF) << 8;    
+      date_int |= ((year - 1970) & 0xFF) << 16; 
+      result.set_int(date_int);
+      result.set_type(AttrType::DATE);
+      break;
+
     default: return RC::UNIMPLEMENTED;
   }
-  return RC::SUCCESS;
+  return rc;
 }
 
 int CharType::cast_cost(AttrType type)

@@ -54,9 +54,20 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
 
 int CharType::cast_cost(AttrType type)
 {
-  if (type == AttrType::CHARS) {
-    return 0;
+  switch(type){
+    case AttrType::CHARS:
+      return 0;
+    case AttrType::INTS:
+      return 1;
+    case AttrType::FLOATS:
+      return 2;
+    case AttrType::DATE:
+      return 3;
+    default: return INT32_MAX;
   }
+  // if (type == AttrType::NULLS) {
+  //   return 4;
+  // }
   return INT32_MAX;
 }
 

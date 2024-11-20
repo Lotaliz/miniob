@@ -35,11 +35,27 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
   const string &data = val.get_string();
   std::istringstream dateStream(data);
   uint32_t date_int = 0;
+  int daysInMonth[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
   switch (type) {
     case AttrType::DATE:
       int year, month, day;
       char dash1, dash2;
       dateStream >> year >> dash1 >> month >> dash2 >> day;
+
+      if (year < 1 || month < 1 || month > 12 || day < 1)
+        return RC::INVALID_ARGUMENT;
+
+      if (year % 4 == 0) {
+        if (year % 100 == 0) {
+            if (year % 400 == 0) daysInMonth[1] = 29;
+        }
+        else daysInMonth[1] = 29;
+      }
+ 
+      if (day > daysInMonth[month - 1]) {
+        return RC::INVALID_ARGUMENT;
+      }
+
       date_int |= (day & 0xFF); 
       date_int |= (month & 0xFF) << 8;    
       date_int |= ((year - 1970) & 0xFF) << 16; 

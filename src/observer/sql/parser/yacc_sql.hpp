@@ -118,8 +118,9 @@ union YYSTYPE
 #line 117 "yacc_sql.y"
 
   ParsedSqlNode *                            sql_node;
-  ConditionSqlNode *                         condition;
+  Expression *                               condition;
   Value *                                    value;
+  Value *                                    expr_value;
   enum CompOp                                comp;
   RelAttrSqlNode *                           rel_attr;
   std::vector<AttrInfoSqlNode> *             attr_infos;
@@ -127,14 +128,14 @@ union YYSTYPE
   Expression *                               expression;
   std::vector<std::unique_ptr<Expression>> * expression_list;
   std::vector<Value> *                       value_list;
-  std::vector<ConditionSqlNode> *            condition_list;
+  std::vector<std::unique_ptr<Expression>> * condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
   std::vector<std::string> *                 relation_list;
   char *                                     string;
   int                                        number;
   float                                      floats;
 
-#line 138 "yacc_sql.hpp"
+#line 139 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

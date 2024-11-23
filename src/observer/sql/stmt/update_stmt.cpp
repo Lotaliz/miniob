@@ -30,7 +30,7 @@ UpdateStmt::~UpdateStmt()
   }
 }
 
-RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
+RC UpdateStmt::create(Db *db, UpdateSqlNode &update, Stmt *&stmt)
 {
   const char *table_name = update.relation_name.c_str();
   const char *attribute_name = update.attribute_name.c_str();
@@ -63,13 +63,16 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     return RC::SCHEMA_FIELD_TYPE_MISMATCH;
   }
   
-  unordered_map<string, Table*> table_map;
-  table_map.insert(pair<string, Table*>(string(table_name), table));
-  FilterStmt* filter = nullptr;
-  RC rc = FilterStmt::create(db, table, &table_map, update.conditions.data(),
-     update.conditions.size(), filter);
-  if(rc != RC::SUCCESS){
-    LOG_WARN("cannot construct filter stmt");
+  BinderContext binder_context;
+  binder_context.add_table(table);
+  std::unordered_map<std::string, Table *> table_map;
+  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+  ExpressionBinder expression_binder(binder_context);
+
+  FilterStmt *filter = nullptr;
+  RC  rc = FilterStmt::create(db, expression_binder, std::move(update.conditions), filter);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
     return rc;
   }
 

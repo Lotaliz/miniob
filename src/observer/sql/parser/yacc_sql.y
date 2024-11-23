@@ -116,8 +116,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
   ParsedSqlNode *                            sql_node;
-  ConditionSqlNode *                         condition;
+  Expression *                               condition;
   Value *                                    value;
+  Value *                                    expr_value;
   enum CompOp                                comp;
   RelAttrSqlNode *                           rel_attr;
   std::vector<AttrInfoSqlNode> *             attr_infos;
@@ -125,7 +126,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   Expression *                               expression;
   std::vector<std::unique_ptr<Expression>> * expression_list;
   std::vector<Value> *                       value_list;
-  std::vector<ConditionSqlNode> *            condition_list;
+  std::vector<std::unique_ptr<Expression>> * condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
   std::vector<std::string> *                 relation_list;
   char *                                     string;
@@ -143,6 +144,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <number>              type
 %type <condition>           condition
 %type <value>               value
+%type <expr_value>          expr_value
 %type <number>              number
 %type <string>              relation
 %type <comp>                comp_op
@@ -399,9 +401,17 @@ value:
       $$ = new Value((int)$1);
       @$ = @1;
     }
+    |'-' NUMBER {
+      $$ = new Value((int)-$2);
+      @$ = @2;
+    }
     |FLOAT {
       $$ = new Value((float)$1);
       @$ = @1;
+    }
+    |'-' FLOAT {
+      $$ = new Value((float)-$2);
+      @$ = @2;
     }
     |SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);
@@ -518,7 +528,7 @@ expression:
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
-    | value {
+    | expr_value {
       $$ = new ValueExpr(*$1);
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
@@ -532,9 +542,30 @@ expression:
     | '*' {
       $$ = new StarExpr();
     }
-    | ID LBRACE expression_list RBRACE {
+    | ID LBRACE expression RBRACE {
       $$ = create_aggregate_expression($1, $3, sql_string, &@$);
     }
+    ;
+
+expr_value:
+    NUMBER {
+      $$ = new Value((int)$1);
+      @$ = @1;
+    }
+    |FLOAT {
+      $$ = new Value((float)$1);
+      @$ = @1;
+    }
+    |SSS {
+      char *tmp = common::substr($1,1,strlen($1)-2);
+      $$ = new Value(tmp);
+      free(tmp);
+      free($1);
+    }
+    // |NULL_T {
+    //   $$ = new Value();
+    //   $$->make_null();
+    // }
     ;
 
 rel_attr:
@@ -590,64 +621,19 @@ condition_list:
       $$ = nullptr;
     }
     | condition {
-      $$ = new std::vector<ConditionSqlNode>;
-      $$->emplace_back(*$1);
-      delete $1;
+      $$ = new std::vector<std::unique_ptr<Expression>>;
+      $$->emplace_back($1);
     }
     | condition AND condition_list {
       $$ = $3;
-      $$->emplace_back(*$1);
-      delete $1;
+      $$->emplace_back($1);
     }
     ;
 condition:
-    rel_attr comp_op value
+    expression comp_op expression
     {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | value comp_op value 
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | rel_attr comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
-    }
-    | value comp_op rel_attr
-    {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      $$ = new ComparisonExpr($2, $1, $3);
+      $$->set_name(token_name(sql_string, &@$));
     }
     ;
 

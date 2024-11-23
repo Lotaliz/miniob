@@ -82,18 +82,11 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
-  Table *default_table = nullptr;
-  if (tables.size() == 1) {
-    default_table = tables[0];
-  }
-
   // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(db,
-      default_table,
-      &table_map,
-      select_sql.conditions.data(),
-      static_cast<int>(select_sql.conditions.size()),
+      expression_binder,
+      std::move(select_sql.conditions),
       filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");

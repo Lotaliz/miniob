@@ -53,10 +53,6 @@ RC DateType::set_value_from_str(Value &val, const string &data) const
 
 RC DateType::to_string(const Value &val, string &result) const
 {
-  if(val.attr_type() == AttrType::NULLS){
-    result = "null";
-    return RC::SUCCESS;
-  }
   stringstream ss;
   uint32_t int_date = val.value_.int_value_;
   int day = int_date & 0xFF; 

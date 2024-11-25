@@ -89,18 +89,11 @@ int CharType::cast_cost(AttrType type)
       return 4;
     default: return INT32_MAX;
   }
-  // if (type == AttrType::NULLS) {
-  //   return 4;
-  // }
   return INT32_MAX;
 }
 
 RC CharType::to_string(const Value &val, string &result) const
 {
-  if(val.attr_type() == AttrType::NULLS){
-    result = "null";
-    return RC::SUCCESS;
-  }
   stringstream ss;
   ss << val.value_.pointer_value_;
   result = ss.str();

@@ -132,7 +132,6 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   }
   else cmp_result = left.compare(right);
 
-  cmp_result = left.compare(right);
   if(cmp_result == INT32_MIN) return rc;
   result         = false;
   switch (comp_) {

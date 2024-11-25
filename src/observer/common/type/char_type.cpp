@@ -18,6 +18,8 @@ class DateType;
 
 int CharType::compare(const Value &left, const Value &right) const
 {
+  if (right.attr_type() == AttrType::NULLS || left.attr_type() == AttrType::NULLS)
+    return INT32_MIN;
   ASSERT(left.attr_type() == AttrType::CHARS && right.attr_type() == AttrType::CHARS, "invalid type");
   return common::compare_string(
       (void *)left.value_.pointer_value_, left.length_, (void *)right.value_.pointer_value_, right.length_);
@@ -95,6 +97,10 @@ int CharType::cast_cost(AttrType type)
 
 RC CharType::to_string(const Value &val, string &result) const
 {
+  if(val.attr_type() == AttrType::NULLS){
+    result = "null";
+    return RC::SUCCESS;
+  }
   stringstream ss;
   ss << val.value_.pointer_value_;
   result = ss.str();

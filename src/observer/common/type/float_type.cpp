@@ -19,6 +19,9 @@ See the Mulan PSL v2 for more details. */
 int FloatType::compare(const Value &left, const Value &right) const
 {
   ASSERT(left.attr_type() == AttrType::FLOATS, "left type is not integer");
+  if(right.attr_type() == AttrType::NULLS)
+    return INT32_MIN;
+
   ASSERT(right.attr_type() == AttrType::INTS || right.attr_type() == AttrType::FLOATS, "right type is not numeric");
   float left_val  = left.get_float();
   float right_val = right.get_float();
@@ -46,7 +49,8 @@ RC FloatType::divide(const Value &left, const Value &right, Value &result) const
   if (right.get_float() > -EPSILON && right.get_float() < EPSILON) {
     // NOTE:
     // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
-    result.set_float(numeric_limits<float>::max());
+    // result.set_float(numeric_limits<float>::max());
+    result.set_null();
   } else {
     result.set_float(left.get_float() / right.get_float());
   }

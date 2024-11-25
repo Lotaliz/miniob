@@ -35,6 +35,7 @@ public:
   friend class BooleanType;
   friend class CharType;
   friend class DateType;
+  friend class NullType;
 
   Value() = default;
 
@@ -54,6 +55,7 @@ public:
   Value &operator=(Value &&other);
 
   void reset();
+  void make_null(void) { set_null(); }
 
   static RC add(const Value &left, const Value &right, Value &result)
   {
@@ -100,6 +102,8 @@ public:
   int      length() const { return length_; }
   AttrType attr_type() const { return attr_type_; }
 
+  bool is_null(void) const { return attr_type_ == AttrType::NULLS; }
+  
 public:
   /**
    * 获取对应的值
@@ -115,6 +119,7 @@ private:
   void set_float(float val);
   void set_string(const char *s, int len = 0);
   void set_string_from_other(const Value &other);
+  void set_null(void);
 
 private:
   AttrType attr_type_ = AttrType::UNDEFINED;

@@ -90,6 +90,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         STRING_T
         FLOAT_T
         DATE_T
+        NULL_T
         HELP
         EXIT
         DOT //QUOTE
@@ -106,6 +107,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         EXPLAIN
         STORAGE
         FORMAT
+        NULLABLE
+        NOT
+        IS
         EQ
         LT
         GT
@@ -132,6 +136,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   char *                                     string;
   int                                        number;
   float                                      floats;
+  bool                                       nullability;
 }
 
 %token <number> NUMBER
@@ -148,6 +153,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <number>              number
 %type <string>              relation
 %type <comp>                comp_op
+%type <comp>                is_op
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
@@ -180,6 +186,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
+%type <nullability>         nullability
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -339,23 +346,47 @@ attr_def_list:
     ;
     
 attr_def:
-    ID type LBRACE number RBRACE 
+    ID type LBRACE number RBRACE nullability
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+      if ($6) {
+        $$->length += 1;
+      }
+      $$->nullable = $6;
       free($1);
     }
-    | ID type
+    | ID type nullability
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      if ($3) {
+        $$->length += 1;
+      }
+      $$->nullable = $3;
       free($1);
     }
     ;
+
+nullability:
+    /* empty */
+    {
+      $$ = false;
+    }
+    | NULLABLE
+    {
+      $$ = true;
+    }
+    | NOT NULL_T
+    {
+      $$ = false;
+    }
+    ;
+
 number:
     NUMBER {$$ = $1;}
     ;
@@ -364,6 +395,7 @@ type:
     | STRING_T { $$ = static_cast<int>(AttrType::CHARS); }
     | FLOAT_T  { $$ = static_cast<int>(AttrType::FLOATS); }
     | DATE_T   { $$ = static_cast<int>(AttrType::DATE);}
+    | NULL_T   { $$ = static_cast<int>(AttrType::NULLS); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
     INSERT INTO ID VALUES LBRACE value value_list RBRACE 
@@ -418,6 +450,10 @@ value:
       $$ = new Value(tmp);
       free(tmp);
       free($1);
+    }
+    | NULL_T {
+      $$ = new Value();
+      $$->make_null();
     }
     ;
 storage_format:
@@ -562,10 +598,10 @@ expr_value:
       free(tmp);
       free($1);
     }
-    // |NULL_T {
-    //   $$ = new Value();
-    //   $$->make_null();
-    // }
+    |NULL_T {
+      $$ = new Value();
+      $$->make_null();
+    }
     ;
 
 rel_attr:
@@ -635,6 +671,11 @@ condition:
       $$ = new ComparisonExpr($2, $1, $3);
       $$->set_name(token_name(sql_string, &@$));
     }
+    | expression is_op expression
+    {
+      $$ = new ComparisonExpr($2, $1, $3);
+      $$->set_name(token_name(sql_string, &@$));
+    }
     ;
 
 comp_op:
@@ -644,6 +685,11 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
+    ;
+
+is_op:
+    IS { $$ = IS_OP; }
+    | IS NOT { $$ = IS_NOT; }
     ;
 
 // your code here

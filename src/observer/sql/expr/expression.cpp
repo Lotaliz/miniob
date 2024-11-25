@@ -124,7 +124,16 @@ ComparisonExpr::~ComparisonExpr() {}
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC  rc         = RC::SUCCESS;
-  int cmp_result = left.compare(right);
+  int cmp_result = 0;
+
+  if (comp_ == CompOp::IS_OP || comp_ == CompOp::IS_NOT) {
+    if (left.is_null() && right.is_null()) cmp_result = 0;
+    else cmp_result = 1;
+  }
+  else cmp_result = left.compare(right);
+
+  cmp_result = left.compare(right);
+  if(cmp_result == INT32_MIN) return rc;
   result         = false;
   switch (comp_) {
     case EQUAL_TO: {
@@ -144,6 +153,12 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     } break;
     case GREAT_THAN: {
       result = (cmp_result > 0);
+    } break;
+    case IS_OP: {
+      result = (0 == cmp_result);
+    } break;
+    case IS_NOT: {
+      result = (1 == cmp_result);
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
@@ -310,9 +325,21 @@ AttrType ArithmeticExpr::value_type() const
     return left_->value_type();
   }
 
+  if (left_->value_type() == AttrType::NULLS || right_->value_type() == AttrType::NULLS) {
+    return AttrType::NULLS;
+  }
+
   if (left_->value_type() == AttrType::INTS && right_->value_type() == AttrType::INTS &&
       arithmetic_type_ != Type::DIV) {
     return AttrType::INTS;
+  }
+
+  if (arithmetic_type_ == Type::DIV && right_->type() == ExprType::VALUE) {
+    ValueExpr *right_value_expr = static_cast<ValueExpr *>(right_.get());
+    if (right_value_expr->get_value().get_float() < EPSILON && 
+        right_value_expr->get_value().get_float() > -EPSILON) {
+      return AttrType::NULLS;
+    }
   }
 
   return AttrType::FLOATS;

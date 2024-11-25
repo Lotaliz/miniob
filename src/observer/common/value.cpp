@@ -129,6 +129,9 @@ void Value::set_data(char *data, int length)
       value_.int_value_ = *(int *)data;
       length_            = length;
     } break;
+    case AttrType::NULLS: {
+      length_            = 0;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -208,6 +211,14 @@ void Value::set_string_from_other(const Value &other)
     memcpy(this->value_.pointer_value_, other.value_.pointer_value_, this->length_);
     this->value_.pointer_value_[this->length_] = '\0';
   }
+}
+
+void Value::set_null()
+{
+  reset();
+  attr_type_ = AttrType::NULLS;
+  value_.pointer_value_ = nullptr;
+  length_  = 0;
 }
 
 const char *Value::data() const

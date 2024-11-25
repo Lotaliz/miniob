@@ -62,6 +62,10 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       result.set_int(date_int);
       result.set_type(AttrType::DATE);
       break;
+    
+    case AttrType::NULLS:
+      result.set_null();
+      break;
 
     default: return RC::UNIMPLEMENTED;
   }
@@ -79,6 +83,8 @@ int CharType::cast_cost(AttrType type)
       return 2;
     case AttrType::DATE:
       return 3;
+    case AttrType::NULLS:
+      return 4;
     default: return INT32_MAX;
   }
   // if (type == AttrType::NULLS) {

@@ -176,8 +176,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
 
     if ((cmp_expr->left()->type() == ExprType::FIELD || cmp_expr->left()->type() == ExprType::VALUE) &&
         (cmp_expr->right()->type() == ExprType::FIELD || cmp_expr->right()->type() == ExprType::VALUE)) {
-      // if (cmp_expr->left()->value_type() != cmp_expr->right()->value_type() && cmp_expr->left()->value_type() != AttrType::NULLS && cmp_expr->right()->value_type() != AttrType::NULLS) {
-      if (cmp_expr->left()->value_type() != cmp_expr->right()->value_type()) {
+      if (cmp_expr->left()->value_type() != cmp_expr->right()->value_type() && cmp_expr->left()->value_type() != AttrType::NULLS && cmp_expr->right()->value_type() != AttrType::NULLS) {
         auto left_to_right_cost = implicit_cast_cost(cmp_expr->left()->value_type(), cmp_expr->right()->value_type());
         auto right_to_left_cost = implicit_cast_cost(cmp_expr->right()->value_type(), cmp_expr->left()->value_type());
         if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {

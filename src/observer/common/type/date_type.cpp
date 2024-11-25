@@ -20,6 +20,9 @@ See the Mulan PSL v2 for more details. */
 int DateType::compare(const Value &left, const Value &right) const
 {
   ASSERT(left.attr_type() == AttrType::DATE, "left type is not date");
+  if(right.attr_type() == AttrType::NULLS)
+    return INT32_MIN;
+
   ASSERT(right.attr_type() == AttrType::DATE, "right type is not date");
   
   if(get_year(left) > get_year(right)) return 1;

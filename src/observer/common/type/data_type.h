@@ -44,6 +44,7 @@ public:
    *  0 表示 left = right
    *  1 表示 left > right
    *  INT32_MAX 表示未实现的比较
+   *  INT32_MIN 表示结果为NULL
    */
   virtual int compare(const Value &left, const Value &right) const { return INT32_MAX; }
 

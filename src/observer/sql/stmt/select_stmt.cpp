@@ -23,6 +23,78 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 using namespace common;
 
+RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+    const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
+{
+  if (common::is_blank(attr.relation_name.c_str())) {
+    table = default_table;
+  } else if (nullptr != tables) {
+    auto iter = tables->find(attr.relation_name);
+    if (iter != tables->end()) {
+      table = iter->second;
+    }
+  } else {
+    table = db->find_table(attr.relation_name.c_str());
+  }
+  if (nullptr == table) {
+    LOG_WARN("No such table: attr.relation_name: %s", attr.relation_name.c_str());
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+  field = table->table_meta().field(attr.attribute_name.c_str());
+  if (nullptr == field) {
+    LOG_WARN("no such field in table: table %s, field %s", table->name(), attr.attribute_name.c_str());
+    table = nullptr;
+    return RC::SCHEMA_FIELD_NOT_EXIST;
+  }
+  return RC::SUCCESS;
+}
+RC create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+    const ConditionSqlNode &condition, FilterUnit *&filter_unit)
+{
+  RC rc = RC::SUCCESS;
+  CompOp comp = condition.comp;
+  if (comp < EQUAL_TO || comp >= NO_OP) {
+    LOG_WARN("invalid compare operator : %d", comp);
+    return RC::INVALID_ARGUMENT;
+  }
+  filter_unit = new FilterUnit;
+  if (condition.left_is_attr) {
+    Table           *table = nullptr;
+    const FieldMeta *field = nullptr;
+    rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot find attr");
+      return rc;
+    }
+    FilterObj filter_obj;
+    filter_obj.init_attr(Field(table, field));
+    filter_unit->set_left(filter_obj);
+  } else {
+    FilterObj filter_obj;
+    filter_obj.init_value(condition.left_value);
+    filter_unit->set_left(filter_obj);
+  }
+  if (condition.right_is_attr) {
+    Table           *table = nullptr;
+    const FieldMeta *field = nullptr;
+    rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot find attr");
+      return rc;
+    }
+    FilterObj filter_obj;
+    filter_obj.init_attr(Field(table, field));
+    filter_unit->set_right(filter_obj);
+  } else {
+    FilterObj filter_obj;
+    filter_obj.init_value(condition.right_value);
+    filter_unit->set_right(filter_obj);
+  }
+  filter_unit->set_comp(comp);
+  // 检查两个类型是否能够比较
+  return rc;
+}
+
 SelectStmt::~SelectStmt()
 {
   if (nullptr != filter_stmt_) {
@@ -41,10 +113,10 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   BinderContext binder_context;
 
   // collect tables in `from` statement
-  vector<Table *>                tables;
+  vector<TableUnit *>            table_units;
   unordered_map<string, Table *> table_map;
   for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
+    const char *table_name = select_sql.relations[i].relation_name.c_str();
     if (nullptr == table_name) {
       LOG_WARN("invalid argument. relation name is null. index=%d", i);
       return RC::INVALID_ARGUMENT;
@@ -57,8 +129,27 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     }
 
     binder_context.add_table(table);
-    tables.push_back(table);
     table_map.insert({table_name, table});
+
+    TableUnit *table_unit = new TableUnit;
+    switch (select_sql.relations[i].join_type) {
+      case JoinType::INNER_JOIN: {
+        table_unit->set_table(table);
+        for (const ConditionSqlNode &condition : select_sql.relations[i].on_conditions) {
+          FilterUnit *filter_unit = nullptr;
+          RC          rc          = create_filter_unit(db, table, &table_map, condition, filter_unit);
+          if (rc != RC::SUCCESS) {
+            LOG_WARN("cannot create filter unit");
+            return rc;
+          }
+          table_unit->add_filter_unit(filter_unit);
+        }
+      } break;
+      case JoinType::UNDEFINED: {
+        table_unit->set_table(table);
+      } break;
+    }
+    table_units.push_back(table_unit);
   }
 
   // collect query fields in `select` statement
@@ -96,7 +187,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
 
-  select_stmt->tables_.swap(tables);
+  select_stmt->table_units_.swap(table_units);
   select_stmt->query_expressions_.swap(bound_expressions);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);

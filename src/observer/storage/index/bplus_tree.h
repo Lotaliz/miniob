@@ -12,7 +12,7 @@ See the Mulan PSL v2 for more details. */
 //
 // Created by Xie Meiyi
 // Rewritten by Longda & Wangyunlai
-//
+// Modified by Lotaliz
 //
 
 #pragma once
@@ -100,13 +100,18 @@ public:
       return result;
     }
 
+    if(ignore_rid_) return 0;
+
     const RID *rid1 = (const RID *)(v1 + attr_comparator_.attr_length());
     const RID *rid2 = (const RID *)(v2 + attr_comparator_.attr_length());
     return RID::compare(rid1, rid2);
   }
 
+  void set_ignore_rid(bool ignore_rid) { ignore_rid_ = ignore_rid; }
+
 private:
   AttrComparator attr_comparator_;
+  bool           ignore_rid_;
 };
 
 /**
@@ -179,6 +184,7 @@ struct IndexFileHeader
   int32_t  attr_length;        ///< 键值的长度
   int32_t  key_length;         ///< attr length + sizeof(RID)
   AttrType attr_type;          ///< 键值的类型
+  bool     is_unique;          ///< 是否唯一
 
   const string to_string() const
   {
@@ -189,7 +195,8 @@ struct IndexFileHeader
        << "attr_type:" << attr_type_to_string(attr_type) << ","
        << "root_page:" << root_page << ","
        << "internal_max_size:" << internal_max_size << ","
-       << "leaf_max_size:" << leaf_max_size << ";";
+       << "leaf_max_size:" << leaf_max_size << ","
+       << "is_unique:" << is_unique << ";";
 
     return ss.str();
   }
@@ -460,8 +467,8 @@ public:
    * @param leaf_max_size 叶子节点最大大小
    */
   RC create(LogHandler &log_handler, BufferPoolManager &bpm, const char *file_name, AttrType attr_type, int attr_length,
-      int internal_max_size = -1, int leaf_max_size = -1);
-  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length,
+      bool is_unique, int internal_max_size = -1, int leaf_max_size = -1);
+  RC create(LogHandler &log_handler, DiskBufferPool &buffer_pool, AttrType attr_type, int attr_length, bool is_unique, 
       int internal_max_size = -1, int leaf_max_size = -1);
 
   /**

@@ -121,6 +121,7 @@ NOT                                     RETURN_TOKEN(NOT);
 IS                                      RETURN_TOKEN(IS);
 INNER                                   RETURN_TOKEN(INNER);
 JOIN                                    RETURN_TOKEN(JOIN);
+UNIQUE                                  RETURN_TOKEN(UNIQUE);
 {DIGIT}+                                yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
 {DIGIT}+{DOT}{DIGIT}+                   yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);

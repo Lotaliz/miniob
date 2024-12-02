@@ -799,6 +799,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
                             const char *file_name, 
                             AttrType attr_type, 
                             int attr_length, 
+                            bool is_unique,
                             int internal_max_size /* = -1*/,
                             int leaf_max_size /* = -1 */)
 {
@@ -818,7 +819,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
   }
   LOG_INFO("Successfully open index file %s.", file_name);
 
-  rc = this->create(log_handler, *bp, attr_type, attr_length, internal_max_size, leaf_max_size);
+  rc = this->create(log_handler, *bp, attr_type, attr_length, is_unique, internal_max_size, leaf_max_size);
   if (OB_FAIL(rc)) {
     bpm.close_file(file_name);
     return rc;
@@ -832,6 +833,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
             DiskBufferPool &buffer_pool,
             AttrType attr_type,
             int attr_length,
+            bool is_unique,
             int internal_max_size /* = -1 */,
             int leaf_max_size /* = -1 */)
 {
@@ -871,6 +873,7 @@ RC BplusTreeHandler::create(LogHandler &log_handler,
   file_header->internal_max_size = internal_max_size;
   file_header->leaf_max_size     = leaf_max_size;
   file_header->root_page         = BP_INVALID_PAGE_NUM;
+  file_header->is_unique         = is_unique;
 
   // 取消记录日志的原因请参考下面的sync调用的地方。
   // mtr.logger().init_header_page(header_frame, *file_header);
@@ -1264,7 +1267,15 @@ RC BplusTreeHandler::insert_entry_into_leaf_node(BplusTreeMiniTransaction &mtr, 
 {
   LeafIndexNodeHandler leaf_node(mtr, file_header_, frame);
   bool                 exists          = false;  // 该数据是否已经存在指定的叶子节点中了
-  int                  insert_position = leaf_node.lookup(key_comparator_, key, &exists);
+  int                  insert_position = 0;
+  if (file_header_.is_unique) {
+    key_comparator_.set_ignore_rid(true);
+    insert_position = leaf_node.lookup(key_comparator_, key, &exists);
+    key_comparator_.set_ignore_rid(false);
+  } else {
+    insert_position = leaf_node.lookup(key_comparator_, key, &exists);
+  }
+  
   if (exists) {
     LOG_TRACE("entry exists");
     return RC::RECORD_DUPLICATE_KEY;

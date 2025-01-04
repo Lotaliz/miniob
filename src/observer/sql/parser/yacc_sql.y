@@ -604,6 +604,12 @@ expression:
     | ID LBRACE expression RBRACE {
       $$ = create_aggregate_expression($1, $3, sql_string, &@$);
     }
+    | ID LBRACE expression COMMA expression RBRACE {
+      $$ = create_aggregate_expression($1, nullptr, sql_string, &@$);
+    }
+    | ID LBRACE RBRACE {
+      $$ = create_aggregate_expression($1, nullptr, sql_string, &@$);
+    }
     ;
 
 expr_value:

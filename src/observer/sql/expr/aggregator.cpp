@@ -17,7 +17,8 @@ See the Mulan PSL v2 for more details. */
 
 RC CountAggregator::accumulate(const Value &value)
 {
-  count_++;
+  if(!value.is_null())
+    count_++;
   return RC::SUCCESS;
 }
 
@@ -80,6 +81,9 @@ RC MaxAggregator::evaluate(Value &result)
 
 RC AvgAggregator::accumulate(const Value &value)
 {
+  if (value.is_null()) {
+    return RC::SUCCESS;
+  }
   if (value_.attr_type() == AttrType::UNDEFINED) {
     value_ = value;
     count_ = 1;

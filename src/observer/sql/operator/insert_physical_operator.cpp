@@ -19,22 +19,35 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-InsertPhysicalOperator::InsertPhysicalOperator(Table *table, vector<Value> &&values)
-    : table_(table), values_(std::move(values))
+InsertPhysicalOperator::InsertPhysicalOperator(Table *table, std::vector<std::vector<Value> > &&rows)
+    : table_(table), rows_(std::move(rows))
 {}
 
 RC InsertPhysicalOperator::open(Trx *trx)
 {
-  Record record;
-  RC     rc = table_->make_record(static_cast<int>(values_.size()), values_.data(), record);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to make record. rc=%s", strrc(rc));
-    return rc;
-  }
-
-  rc = trx->insert_record(table_, record);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
+  RC rc = RC::SUCCESS;
+  vector<Record> records;
+  records.resize(rows_.size());
+  for(int i = 0; i < rows_.size(); i++) {
+    Record &temp_record = records[i];
+    rc = table_->make_record(static_cast<int>(rows_[i].size()), rows_[i].data(), temp_record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to make record. rc=%s", strrc(rc));
+      for (int j = i - 1; j >= 0; j--) {
+        Record &inserted_record = records[j];
+        RC rc2 = trx->delete_record(table_, inserted_record);
+        if (rc2 != RC::SUCCESS) {
+          LOG_WARN("failed to rollback falsely inserted records. rc=%s", strrc(rc2));
+          break;
+        }
+      }
+      return rc;
+    }
+    rc = trx->insert_record(table_, temp_record);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
+      return rc;
+    }
   }
   return rc;
 }

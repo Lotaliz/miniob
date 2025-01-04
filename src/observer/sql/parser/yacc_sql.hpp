@@ -129,6 +129,7 @@ union YYSTYPE
   ConditionSqlNode *                         on_condition;
   Value *                                    value;
   Value *                                    expr_value;
+  std::vector<std::vector<Value>> *          row_list; 
   enum CompOp                                comp;
   RelAttrSqlNode *                           rel_attr;
   std::vector<AttrInfoSqlNode> *             attr_infos;
@@ -136,6 +137,7 @@ union YYSTYPE
   Expression *                               expression;
   std::vector<std::unique_ptr<Expression>> * expression_list;
   std::vector<Value> *                       value_list;
+  std::vector<Value> *                       row;
   std::vector<std::unique_ptr<Expression>> * condition_list;
   std::vector<ConditionSqlNode> *            on_condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
@@ -146,7 +148,7 @@ union YYSTYPE
   float                                      floats;
   bool                                       nullability;
 
-#line 150 "yacc_sql.hpp"
+#line 152 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
